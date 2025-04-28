@@ -2,7 +2,7 @@ services:
   - type: web
     name: fb-ad-uploader
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install werkzeug==2.2.3 && pip install -r requirements.txt
     startCommand: gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:socketio
     envVars:
       - key: PYTHON_VERSION
