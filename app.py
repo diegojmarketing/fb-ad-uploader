@@ -474,7 +474,6 @@ def cancel_upload(session_id):
 def handle_progress(data):
     emit('progress_update', data, broadcast=False)
 
-if __name__ == '__main__':
-    socketio.run(app, debug=True)
-
-application = socketio.run(app)
+if __name__ == "__main__":
+    # For local development
+    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
