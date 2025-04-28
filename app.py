@@ -476,3 +476,5 @@ def handle_progress(data):
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
+
+application = socketio.run(app)
