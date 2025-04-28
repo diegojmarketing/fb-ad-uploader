@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Facebook Ad Media Uploader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Facebook Ad Media Uploader</h1>
+        
+        <form id="upload-form">
+            <div class="form-group">
+                <label for="access-token">Facebook Access Token:</label>
+                <input type="text" id="access-token" name="access_token" required>
+                <div class="help-text">Your token must have ads_management permission</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="ad-account-id">Ad Account ID:</label>
+                <input type="text" id="ad-account-id" name="ad_account_id" required>
+                <div class="help-text">Format: act_XXXXXXXXXX (will be prefixed with 'act_' if not provided)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="action">Action:</label>
+                <select id="action" name="action">
+                    <option value="upload_images">Upload Images Only</option>
+                    <option value="upload_videos">Upload Videos Only</option>
+                    <option value="all">Upload All Media</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Select Files:</label>
+                <div id="drop-area">
+                    <p>Drag files here or</p>
+                    <input type="file" id="files" name="files" multiple>
+                    <label for="files" class="file-button">Browse Files</label>
+                    <p class="help-text">Supported formats: JPG, PNG, GIF, MP4, MOV, AVI, WMV</p>
+                    <div id="file-list"></div>
+                    <div id="preview-container"></div>
+                </div>
+            </div>
+            
+            <div class="advanced-options">
+                <h3>Advanced Options</h3>
+                
+                <div class="form-group">
+                    <label for="get-thumbnails">Get Video Thumbnails:</label>
+                    <input type="checkbox" id="get-thumbnails" name="get_thumbnails" checked>
+                </div>
+                
+                <div class="form-group">
+                    <label for="thumbnail-wait-time">Thumbnail Wait Time (seconds):</label>
+                    <input type="number" id="thumbnail-wait-time" name="thumbnail_wait_time" value="10" min="5" max="30">
+                </div>
+                
+                <div class="form-group">
+                    <label for="max-retries">Max Retry Attempts:</label>
+                    <input type="number" id="max-retries" name="max_retries" value="3" min="1" max="5">
+                </div>
+                
+                <div class="form-group">
+                    <label for="retry-delay">Initial Retry Delay (seconds):</label>
+                    <input type="number" id="retry-delay" name="retry_delay" value="2" min="1" max="10" step="0.5">
+                </div>
+            </div>
+            
+            <div id="batch-operations" class="hidden">
+                <h3>Batch Operations</h3>
+                
+                <div class="batch-section">
+                    <h4>Batch Rename</h4>
+                    <div class="form-group">
+                        <label for="rename-pattern">Rename Pattern:</label>
+                        <input type="text" id="rename-pattern" placeholder="campaign_{index}" value="campaign_{index}">
+                        <div class="help-text">Available patterns: {index}, {original}, {type}, {date}</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="start-index">Start Index:</label>
+                        <input type="number" id="start-index" value="1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="index-padding">Index Padding:</label>
+                        <input type="number" id="index-padding" value="3" min="1" max="10">
+                        <div class="help-text">Number of digits (e.g. 3 = 001, 002, etc.)</div>
+                    </div>
+                    <button type="button" id="preview-rename" class="secondary-button">Preview Rename</button>
+                    <button type="button" id="apply-rename" class="secondary-button">Apply Rename</button>
+                </div>
+                
+                <div class="batch-section">
+                    <h4>Batch Tagging</h4>
+                    <div class="form-group">
+                        <label for="tag-input">Add Tags:</label>
+                        <div class="tag-input-container">
+                            <input type="text" id="tag-input" placeholder="Add tag and press Enter">
+                            <div id="tag-suggestions" class="hidden"></div>
+                        </div>
+                    </div>
+                    <div id="active-tags" class="tag-container"></div>
+                    <div class="form-group">
+                        <label>Preset Tags:</label>
+                        <div class="preset-tags">
+                            <span class="preset-tag" data-tag="product">Product</span>
+                            <span class="preset-tag" data-tag="lifestyle">Lifestyle</span>
+                            <span class="preset-tag" data-tag="banner">Banner</span>
+                            <span class="preset-tag" data-tag="promotion">Promotion</span>
+                            <span class="preset-tag" data-tag="seasonal">Seasonal</span>
+                        </div>
+                    </div>
+                    <button type="button" id="apply-tags" class="secondary-button">Apply Tags to Selected</button>
+                    <button type="button" id="clear-tags" class="secondary-button">Clear Tags from Selected</button>
+                </div>
+                
+                <div class="batch-section">
+                    <h4>Filter & Sort</h4>
+                    <div class="form-group">
+                        <label for="filter-type">Filter by Type:</label>
+                        <select id="filter-type">
+                            <option value="all">All Types</option>
+                            <option value="image">Images Only</option>
+                            <option value="video">Videos Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-tag">Filter by Tag:</label>
+                        <select id="filter-tag">
+                            <option value="all">All Tags</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sort-by">Sort By:</label>
+                        <select id="sort-by">
+                            <option value="name-asc">Name (A-Z)</option>
+                            <option value="name-desc">Name (Z-A)</option>
+                            <option value="size-asc">Size (Small to Large)</option>
+                            <option value="size-desc">Size (Large to Small)</option>
+                            <option value="type">File Type</option>
+                        </select>
+                    </div>
+                    <button type="button" id="apply-filters" class="secondary-button">Apply Filters & Sort</button>
+                    <button type="button" id="reset-filters" class="secondary-button">Reset Filters</button>
+                </div>
+                
+                <div class="batch-section">
+                    <h4>Bulk Operations</h4>
+                    <div class="bulk-actions">
+                        <button type="button" id="select-all-failed" class="secondary-button">Select All Failed</button>
+                        <button type="button" id="select-all-success" class="secondary-button">Select All Successful</button>
+                        <button type="button" id="select-none" class="secondary-button">Deselect All</button>
+                    </div>
+                    <div class="bulk-actions">
+                        <button type="button" id="retry-selected" class="secondary-button">Retry Selected</button>
+                        <button type="button" id="remove-selected" class="secondary-button danger-button">Remove Selected</button>
+                        <button type="button" id="download-selected" class="secondary-button">Download Results for Selected</button>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" id="submit-button">Upload</button>
+        </form>
+        
+        <div id="progress" class="hidden">
+            <h2>Uploading...</h2>
+            <div id="overall-progress">
+                <div class="progress-label">Overall Progress:</div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div id="progress-text">0% (0/0 files)</div>
+            </div>
+            
+            <div id="upload-controls" class="hidden">
+                <button id="pause-button" type="button">Pause Upload</button>
+                <button id="resume-button" type="button" disabled>Resume Upload</button>
+                <button id="cancel-button" type="button">Cancel Upload</button>
+            </div>
+            
+            <div id="file-progress-container"></div>
+        </div>
+        
+        <div id="results" class="hidden">
+            <h2>Upload Results</h2>
+            <div id="results-content"></div>
+            
+            <div id="export-options" class="hidden">
+                <h3>Export Results</h3>
+                <div class="export-buttons">
+                    <button id="download-json">Download as JSON</button>
+                    <button id="download-csv">Download as CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
