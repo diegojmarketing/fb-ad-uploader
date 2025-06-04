@@ -7,5 +7,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port)
 else:
-    # For Gunicorn
-    application = socketio.run(app, host="0.0.0.0")
+    # For Gunicorn, expose the WSGI callable
+    application = app
